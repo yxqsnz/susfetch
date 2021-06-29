@@ -3,7 +3,10 @@ mod colors;
 use colors::Colors;
 use colors::Colors::*;
 
-use susfetch::get_item_from_c_buf;
+use susfetch::{
+    IOResult,
+    get_item_from_c_buf,
+};
 
 #[derive(Debug)]
 pub struct SusFetch {
@@ -12,10 +15,11 @@ pub struct SusFetch {
     wm: String,
     host: String,
     os: String,
+    terminal: String
 }
 impl SusFetch {
-    fn default() -> Self {
-        let kernel = "AAA".to_owned();
+    fn default() -> IOResult<Self> {
+        let kernel = susfetch::get_kernel_version()?;
 
         let host = format!(
             "{}@{}",
@@ -41,13 +45,16 @@ impl SusFetch {
                 env::var("DESKTOP_SESSION").unwrap_or("unknown".to_owned())
             );
 
-        Self {
+        let terminal = env::var("TERM").unwrap_or("xterm".to_owned());
+
+        Ok(Self {
             kernel,
             host,
             os,
             wm,
             shell,
-        }
+            terminal
+        })
     }
 
     fn format(&mut self) {
@@ -68,7 +75,7 @@ impl SusFetch {
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⡟⠀⣠⣶⠛⠛⠛⠛⠛⠛⠳⣦⡀⠀⠘⣿⡄⠀⠀{}: {}
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⠁⠀⢹⣿⣦⣀⣀⣀⣀⣀⣠⣼⡇⠀⠀⠸⣷⠀⠀{}: {}
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⡏⠀⠀⠀⠉⠛⠿⠿⠿⠿⠛⠋⠁⠀⠀⠀⠀⣿⡄ {}: {}
-⠀⠀    ⠀⠀⢠⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⡇⠀
+⠀⠀    ⠀⠀⢠⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⡇⠀{}: {}
       ⠀⠀⣸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⣿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣧⠀
 ⠀⠀⠀⠀⠀⠀⠀⢸⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣿⠀
@@ -90,6 +97,8 @@ impl SusFetch {
             self.shell,
             Colors::colorize(Green, "WM"),
             self.wm,
+            Colors::colorize(Green, "Terminal"),
+            self.terminal
         )
     }
     pub fn run(&mut self) {
@@ -97,7 +106,8 @@ impl SusFetch {
         self.show();
     }
 }
-fn main() {
-    let mut sus = SusFetch::default();
+fn main() -> IOResult<()> {
+    let mut sus = SusFetch::default()?;
     sus.run();
+    Ok(())
 }

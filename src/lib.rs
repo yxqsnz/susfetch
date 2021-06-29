@@ -11,7 +11,7 @@ pub fn get_kernel_version() -> IOResult<String> {
         .output()?
         .stdout;
 
-    Ok(String::from_utf8(output).unwrap()) // basically no chance of failing here
+    Ok(String::from_utf8(output).unwrap().replace("\n", "")) // basically no chance of failing here
 }
 
 pub fn get_distro() -> String {

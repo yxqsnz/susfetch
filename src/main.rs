@@ -1,30 +1,46 @@
 use std::env;
+mod colors;
+use colors::Colors;
+use colors::Colors::*;
 
-use sysinfo::*;
+use susfetch::get_item_from_c_buf;
+
 #[derive(Debug)]
 pub struct SusFetch {
-    kernel: Option<String>,
+    kernel: String,
     shell: String,
     wm: String,
     host: String,
     os: String,
 }
-impl Default for SusFetch {
+impl SusFetch {
     fn default() -> Self {
-        let sys = System::new_all();
+        let kernel = "AAA".to_owned();
 
-        let kernel = sys.get_kernel_version();
+        let host = format!(
+            "{}@{}",
+            get_item_from_c_buf!(getlogin_r),
+            get_item_from_c_buf!(gethostname)
+        );
 
-        let host = format!("{}@{}", whoami::username(), whoami::hostname());
-        let os = whoami::distro();
-        let mut shell = "unknown".to_string();
-        if let Ok(var) = env::var("SHELL") {
-            let split: Vec<_> = var.split('/').collect();
-            if let Some(sh) = split.last() {
-                shell = sh.to_string();
+        let os = susfetch::get_distro();
+ 
+        let shell = match env::var("SHELL") {
+            Ok(var) => {
+                let split: Vec<_> = var.split('/').collect();
+                match split.last() {
+                    Some(sh) => sh.to_string(),
+                    _ => "unknown".to_string()
+                }
             }
-        }
-        let wm = env::var("DESKTOP_SESSION").unwrap_or_else(|_| "unknown".into());
+            _ => "unknown".to_string()
+        };
+
+        let wm = env::var("XDG_CURRENT_DESKTOP")
+            .unwrap_or(
+                env::var("DESKTOP_SESSION").unwrap_or("unknown".to_owned())
+            );
+
         Self {
             kernel,
             host,
@@ -33,18 +49,14 @@ impl Default for SusFetch {
             shell,
         }
     }
-}
-impl SusFetch {
-    fn format(&mut self) {
-        if self.kernel.is_none() {
-            self.kernel = Some(yansi::Paint::red("Linux (Failed to get kernel.)").to_string());
-            if self.wm == *"unknown" {
-                self.wm = yansi::Paint::red("unknown").to_string();
-            }
 
-            if self.shell == *"unknown" {
-                self.shell = yansi::Paint::red("unknown").to_string();
-            }
+    fn format(&mut self) {
+        if self.wm == *"unknown" {
+            self.wm = Colors::colorize(Red, "unknown");
+        }
+
+        if self.shell == *"unknown" {
+            self.shell = Colors::colorize(Red, "unknown");
         }
     }
     fn show(&self) {
@@ -70,17 +82,13 @@ impl SusFetch {
           ⠀⠀⠀⠀⠈⣿⣆⡀⠀⠀⠀⠀⠀⠀⢀⣠⣴⡾⠃⠀
 ⠀        ⠀⠀⠀⠀⠀⠀⠈⠛⠻⢿⣿⣾⣿⡿⠿⠟⠋⠁⠀⠀"#,
             self.host,
-            yansi::Paint::green("OS"),
+            Colors::colorize(Green, "OS"),
             self.os,
-            yansi::Paint::green("Kernel"),
-            if let Some(kernel) = &self.kernel {
-                kernel
-            } else {
-                panic!("Err...")
-            },
-            yansi::Paint::green("Shell"),
+            Colors::colorize(Green, "Kernel"),
+            self.kernel,
+            Colors::colorize(Green, "Shell"),
             self.shell,
-            yansi::Paint::green("WM"),
+            Colors::colorize(Green, "WM"),
             self.wm,
         )
     }
